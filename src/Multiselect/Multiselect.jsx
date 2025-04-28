@@ -1,69 +1,132 @@
-import { Component } from 'react';
+import React, { Component } from 'react';
 
 class Multiselect extends Component {
    constructor(props) {
       super(props);
       this.state = {
-         selectedOptions: props.selectedOptions || [],
-         searchTerm: '',
+         isOpen: false, // открыт/закрыт список
+         query: '', // поисковый текст
       };
+
+      this.wrapperRef = React.createRef(); // создаем ссылку на список
    }
 
-   handleSelectionChange = (e) => {
-      const selectedOptions = Array.from(e.target.selectedOptions).map((option) => ({
-         label: option.label,
-         value: option.value,
-      }));
-
-      this.setState({ selectedOptions });
-      this.props.onSelectionChange(selectedOptions);
+   // проверяем, что клик мимо выпадающего списка
+   handleClickOutside = (e) => {
+      if (this.wrapperRef && !this.wrapperRef.current.contains(e.target)) {
+         this.setState({ isOpen: false });
+      }
    };
 
-   handleSearchChange = (e) => {
-      this.setState({ searchTerm: e.target.value });
+   // открыть/закрыть выпадающий список
+   handleToggleDropdown = () => this.setState((prev) => ({ isOpen: !prev.isOpen }));
+
+   handleSearch = (e) => {
+      this.setState({ query: e.target.value });
    };
 
-   handleClearSelection = () => {
-      this.setState({ selectedOptions: [] });
-      this.props.onSelectionChange([]);
+   // выбрать опцию
+   handleOptionClick = (o) => {
+      const isSelected = this.props.selectedOptions.some((i) => i.name === o.name);
+
+      const newSelection = isSelected
+         ? this.props.selectedOptions.filter((i) => i.name !== o.name)
+         : [...this.props.selectedOptions, o];
+
+      this.props.onSelectionChange(newSelection);
    };
+
+   // удалить опцию
+   handleRemoveOption = (id) =>
+      this.props.onSelectionChange(this.props.selectedOptions.filter((i) => i.id !== id));
+
+   // очистить выбранные опции
+   handleClearAll = () => this.props.onSelectionChange([]);
+
+   componentDidMount() {
+      document.addEventListener('mousedown', this.handleClickOutside);
+   }
+
+   componentWillUnmount() {
+      document.removeEventListener('mousedown', this.handleClickOutside);
+   }
 
    render() {
-      const { options } = this.props;
-      const { selectedOptions, searchTerm } = this.state;
+      const { isOpen, query } = this.state;
+      const { options, selectedOptions, placeholder } = this.props;
 
-      // фильтруем опции на основе строки поиска
-      const filteredOptions = options.filter((option) =>
-         option.label.toLowerCase().includes(searchTerm.toLowerCase())
+      // создаем отфильтрованный массив по поисковому слову
+      const filteredOptions = options.filter((o) =>
+         o.name.toLowerCase().includes(query.toLowerCase())
       );
 
       return (
-         <div>
-            <input
-               type='text'
-               placeholder='Type here'
-               value={searchTerm}
-               onChange={this.handleSearchChange}
-               className='block w-full p-2 mb-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-500'
-            />
-            <select
-               multiple
-               value={selectedOptions.map((o) => o.value)}
-               onChange={this.handleSelectionChange}
-               className='block w-full h-32 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-500'
+         <div className='relative w-full' ref={this.wrapperRef}>
+            <div
+               className='flex flex-wrap gap-2 mb-2 border rounded p-2'
+               onClick={this.handleToggleDropdown}
             >
-               {filteredOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                     {o.label}
-                  </option>
+               {selectedOptions.length === 0 && (
+                  <span className='text-gray-400'>{placeholder}</span>
+               )}
+
+               {selectedOptions.map((o) => (
+                  <div key={o.id} className='flex items-center bg-blue-100 rounded px-2 py-1'>
+                     <span className='mr-2'>{o.name}</span>
+                     <button
+                        onClick={(e) => {
+                           e.preventDefault();
+                           this.handleRemoveOption(o.id);
+                        }}
+                        title='delete this option'
+                        className='text-gray-500 hover:text-red-600 cursor-pointer'
+                     >
+                        x
+                     </button>
+                  </div>
                ))}
-            </select>
-            <button
-               onClick={this.handleClearSelection}
-               className='mt-2 px-4 py-2 text-white bg-red-500 rounded-md hover:bg-red-600 focus:outline-none'
-            >
-               Clear Selection
-            </button>
+            </div>
+
+            {isOpen && (
+               <div className='absolute w-full border rounded bg-white z-10'>
+                  <input
+                     type='text'
+                     placeholder='Type here'
+                     value={query}
+                     onChange={this.handleSearch}
+                     className='w-full p-2 border-b focus:outline-none'
+                  />
+
+                  <div className='max-h-50 overflow-y-auto'>
+                     {filteredOptions.length === 0 ? (
+                        <div className='p-2 text-gray-500'>No results</div>
+                     ) : (
+                        filteredOptions.map((o) => {
+                           return (
+                              <div
+                                 key={o.id}
+                                 onClick={() => this.handleOptionClick(o)}
+                                 className='p-2 cursor-pointer bg-blue-100 hover:bg-gray-100'
+                              >
+                                 {o.name}
+                              </div>
+                           );
+                        })
+                     )}
+                  </div>
+
+                  {selectedOptions.length > 0 && (
+                     <div className='border-t p-2'>
+                        <button
+                           onClick={this.handleClearAll}
+                           className='text-red-500 hover:text-red-700'
+                        >
+                           Clear
+                        </button>
+                     </div>
+                  )}
+               </div>
+            )}
          </div>
       );
    }

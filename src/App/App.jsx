@@ -1,24 +1,24 @@
 import { Component } from 'react';
 import Multiselect from './../Multiselect/Multiselect';
 
+const API = 'http://109.67.155.6:8091/api/countries';
+
 class App extends Component {
    state = {
-      selectedOptions: [],
-      options: [],
+      options: [], // список опций
+      selectedOptions: [], // список выбранных опций
    };
 
-   componentDidMount() {
-      this.handleFetchTimezones();
-   }
-
-   handleFetchTimezones = async () => {
+   // запрашиваем данные с API
+   handleFetchCountries = async () => {
       try {
-         const response = await fetch('https://timeapi.io/api/timezone/availabletimezones');
+         const response = await fetch(API);
          const data = await response.json();
-         console.log(data);
-         const options = data.map((timezone) => ({
-            label: timezone,
-            value: timezone,
+
+         const options = data.map((o) => ({
+            id: o.id,
+            code: o.code,
+            name: o.name,
          }));
          this.setState({ options });
       } catch (error) {
@@ -30,26 +30,45 @@ class App extends Component {
       this.setState({ selectedOptions: newOptions });
    };
 
+   // очистить опции
+   handleClear = () => this.setState({ selectedOptions: [] });
+
+   componentDidMount() {
+      this.handleFetchCountries();
+   }
+
    render() {
+      const { options, selectedOptions } = this.state;
+
       return (
-         <div className='max-w-md mx-auto mt-10'>
-            <h1 className='text-xl font-bold mb-4'>Multiselect</h1>
+         <section className='container mx-auto p-4 max-w-md'>
+            <h1 className='text-2xl font-bold mb-4'>Select your country</h1>
             <Multiselect
-               options={this.state.options}
-               selectedOptions={this.state.selectedOptions}
+               options={options}
+               selectedOptions={selectedOptions}
                onSelectionChange={this.handleSelectionChange}
+               placeholder='Choose options'
             />
-            <div className='mt-4'>
-               <h2 className='text-lg font-semibold'>Options:</h2>
-               <ul className='list-disc pl-5'>
-                  {this.state.selectedOptions.map((option) => (
-                     <li key={option.value} className='text-gray-700'>
-                        {option.label}
-                     </li>
-                  ))}
-               </ul>
-            </div>
-         </div>
+
+            {selectedOptions.length > 0 && (
+               <div className='mt-4'>
+                  <h2 className='text-lg font-semibold'>Selected countries:</h2>
+                  <ul className='list-none pl-5'>
+                     {selectedOptions.map((o) => (
+                        <li key={o.id} className='text-xl'>
+                           {o.code} - {o.name}
+                        </li>
+                     ))}
+                  </ul>
+                  <button
+                     onClick={this.handleClear}
+                     className='w-16 border-1 rounded px-1 mt-4 text-lg font-semibold text-red-500 hover:text-red-700 cursor-pointer'
+                  >
+                     Clear
+                  </button>
+               </div>
+            )}
+         </section>
       );
    }
 }
